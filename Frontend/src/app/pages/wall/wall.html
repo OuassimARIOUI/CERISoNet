@@ -1,0 +1,20 @@
+<div class="wall-container">
+  <app-notification></app-notification>
+
+  <div class="wall-header">
+    <h1>CERISoNet</h1>
+    <p class="subtitle">Mur d'accueil</p>
+  </div>
+
+  <div class="info-card" *ngIf="derniereConnexion">
+    <span class="info-label">Dernière connexion :</span>
+    <span class="info-value">{{ derniereConnexion }}</span>
+  </div>
+  <div class="info-card" *ngIf="!derniereConnexion">
+    <span class="info-label">Première connexion sur cet appareil</span>
+  </div>
+
+  <div class="wall-posts">
+    <p class="posts-placeholder">Les posts s'afficheront ici.</p>
+  </div>
+</div>

@@ -1,0 +1,4 @@
+node_modules/
+Frontend/dist/
+Backend/cert/
+.env

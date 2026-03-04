@@ -1,0 +1,18 @@
+.notif {
+  padding: 10px 14px;
+  margin-top: 14px;
+  border-left: 3px solid;
+  font-size: 0.83rem;
+}
+
+.notif.success {
+  background: #f2faf5;
+  color: #1a6930;
+  border-color: #27ae60;
+}
+
+.notif.error {
+  background: #fef5f5;
+  color: #882222;
+  border-color: #e04040;
+}
