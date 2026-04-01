@@ -133,3 +133,5 @@ app.get('/api/testdb', async (req, res) => {
         res.status(500).json({ error: 'Database query failed' });
     }
 });
+
+app.get('/api/posts', async (req, res) => {});
