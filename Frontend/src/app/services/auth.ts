@@ -20,4 +20,8 @@ export class Auth {
   getWall(): Observable<any> {
     return this.http.get(`${this.baseUrl}/api/wall`, { withCredentials: true });
   }
+
+  logout(): Observable<any> {
+    return this.http.post(`${this.baseUrl}/api/logout`, {}, { withCredentials: true });
+  }
 }

@@ -1,7 +1,7 @@
-// 1. Ajoute ChangeDetectorRef dans tes imports
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core'; 
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms'; // <-- IMPORT AJOUTÉ
 import { Auth } from '../../services/auth';
 import { PostService } from '../../services/post';
 import { NotificationService } from '../../services/notification';
@@ -9,7 +9,7 @@ import { Notification } from '../../components/notification/notification';
 
 @Component({
   selector: 'app-wall',
-  imports: [CommonModule, Notification],
+  imports: [CommonModule, Notification, ReactiveFormsModule], 
   templateUrl: './wall.html',
   styleUrl: './wall.css'
 })
@@ -23,13 +23,26 @@ export class Wall implements OnInit {
   isLoading: boolean = false;
   hasMore: boolean = true;
 
+  // Formulaire de publication
+  postForm: FormGroup;
+  isPublishing: boolean = false;
+
   constructor(
     private authService: Auth,
     private postService: PostService,
     public notifService: NotificationService,
     private router: Router,
-    private cdr: ChangeDetectorRef // 2. Injecte-le ici
-  ) {}
+    private cdr: ChangeDetectorRef,
+    private fb: FormBuilder 
+  ) {
+    // Initialisation du formulaire
+    this.postForm = this.fb.group({
+      body: ['', [Validators.required, Validators.maxLength(500)]],
+      hashtags: [''],
+      imageUrl: [''],   
+      imageTitle: ['']
+    });
+  }
 
   ngOnInit(): void {
     const prev = localStorage.getItem('previousLogin');
@@ -39,7 +52,7 @@ export class Wall implements OnInit {
       next: (response) => {
         this.userId = response.userId;
         this.authOk = true;
-        this.cdr.detectChanges(); // 3. Force Angular à afficher le div authOk
+        this.cdr.detectChanges();
         this.loadPosts(); 
       },
       error: () => {
@@ -51,7 +64,6 @@ export class Wall implements OnInit {
 
   loadPosts(): void {
     if (this.isLoading || !this.hasMore) return;
-
     this.isLoading = true;
 
     this.postService.getPosts(this.currentPage).subscribe({
@@ -65,16 +77,63 @@ export class Wall implements OnInit {
           } else {
             this.currentPage++;
           }
-          
-          // 4. Force Angular à dessiner les nouveaux posts à l'écran !
           this.cdr.detectChanges(); 
         }
       },
       error: (err) => {
         this.isLoading = false;
         this.notifService.show('Erreur lors du chargement des posts.', 'error');
-        console.error('Erreur getPosts:', err);
       }
     });
   }
+
+  
+  onSubmitPost(): void {
+    if (this.postForm.invalid) return;
+
+    this.isPublishing = true;
+    const { body, hashtags, imageUrl, imageTitle } = this.postForm.value;
+
+    this.postService.createPost(body, hashtags, imageUrl, imageTitle).subscribe({
+      next: (response) => {
+        if (response.success) {
+          
+          // tout en haut de la liste sans avoir à recharger la page entière !
+          this.posts.unshift(response.post);
+          
+          this.notifService.show('Post publié avec succès !', 'success');
+          this.postForm.reset(); // On vide le formulaire
+          this.isPublishing = false;
+          this.cdr.detectChanges();
+        }
+      },
+      error: (err) => {
+        this.isPublishing = false;
+        this.notifService.show('Erreur lors de la publication.', 'error');
+        console.error('Erreur createPost:', err);
+      }
+    });
+  }
+
+  onLogout(): void {
+    this.authService.logout().subscribe({
+      next: (response) => {
+
+        // On affiche un message de succès
+        this.notifService.show('Vous avez été déconnecté avec succès.', 'success');
+
+        // On redirige vers la page de login
+        this.router.navigate(['/login']);
+      },
+      error: (err) => {
+        console.error('Erreur de déconnexion:', err);
+
+        this.notifService.show('Erreur lors de la déconnexion.', 'error');
+        
+        // On redirige quand même par sécurité
+        this.router.navigate(['/login']);
+      }
+    });
+  }
+
 }

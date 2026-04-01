@@ -16,4 +16,13 @@ export class PostService {
       withCredentials: true // Indispensable pour envoyer le cookie de session MongoDB !
     });
   }
+
+  createPost(body: string, hashtags: string, imageUrl: string, imageTitle: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/api/posts`, {
+      body: body,
+      hashtags: hashtags,
+      imageUrl: imageUrl,     
+      imageTitle: imageTitle
+    }, { withCredentials: true });
+  }
 }

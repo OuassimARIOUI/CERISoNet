@@ -1,29 +1,32 @@
-import { Injectable, NgZone } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 
 @Injectable({
   providedIn: 'root'
 })
 export class NotificationService {
-  message: string = '';
-  type: 'success' | 'error' | '' = '';
+  
+  message = signal<string>('');
+  type = signal<'success' | 'error' | ''>('');
   private timer: any = null;
 
-  constructor(private zone: NgZone) {}
+  constructor() {}
 
-  show(message: string, type: 'success' | 'error') {
-    this.message = message;
-    this.type = type;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = this.zone.runOutsideAngular(() =>
-      setTimeout(() => {
-        this.zone.run(() => this.clear());
-      }, 5000)
-    );
+  show(msg: string, t: 'success' | 'error') {
+    this.message.set(msg);
+    this.type.set(t);
+
+    if (this.timer) {
+      clearTimeout(this.timer);
+    }
+
+    this.timer = setTimeout(() => {
+      this.clear();
+    }, 5000);
   }
 
   clear() {
-    this.message = '';
-    this.type = '';
+    this.message.set('');
+    this.type.set('');
     this.timer = null;
   }
 }

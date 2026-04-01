@@ -11,7 +11,8 @@ const sql = require('./utils/dbConnection');
 const { connectMongo } = require('./utils/mongoConnection');
 const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
-const { verifConnection } = require('./models/Internaute.js')
+const { verifConnection } = require('./models/Internaute.js');
+const { url } = require('inspector');
 
 
 //importing des fichiers ssl pour la création du serveur https
@@ -140,30 +141,72 @@ app.get('/api/posts', async (req, res) => {
         return res.status(401).json({ error: 'Unauthorized: veuillez vous connecter' });
     }
 
-    try{
-        //Récupération du paramètre de page (par défaut 0)
-        const page = parseInt(req.query.page)|| 0 ;
-        const postPerPage = 20 ;
-        const skipAmount = page * postPerPage;
+    try {
+        const page = parseInt(req.query.page) || 0;
+        const postsPerPage = 20;
+        const skipAmount = page * postsPerPage;
 
-        //Connexion à la base et ciblage de la collection
         const db = await connectMongo();
         const collection = db.collection('CERISoNet');
 
         //  Requête MongoDB avec tri et pagination
         const posts = await collection.find()
-        .sort({ date : -1, hour :-1 }) // Trie du plus récent au plus ancien
-        .skip(skipAmount)
-        .limit(postPerPage).toArray();
+            .sort({ date: -1, hour: -1 })
+            .skip(skipAmount)
+            .limit(postsPerPage)
+            .toArray();
 
+        //  Extraction de tous les identifiants uniques (auteurs des posts + auteurs des commentaires)
+        const userIds = new Set();
+        posts.forEach(post => {
+            if (post.createdBy) userIds.add(post.createdBy);
+            if (post.comments) {
+                post.comments.forEach(comment => {
+                    if (comment.commentedBy) userIds.add(comment.commentedBy);
+                });
+            }
+        });
+
+        const idsArray = Array.from(userIds);
+        let usersMap = {};
+
+        //  Requête PostgreSQL pour faire la correspondance ID -> Pseudo
+        // On s'assure d'abord qu'il y a bien des IDs à chercher pour éviter une erreur SQL
+        if (idsArray.length > 0) {
+            const users = await sql`
+                SELECT id, pseudo 
+                FROM fredouil.compte 
+                WHERE id IN ${sql(idsArray)}
+            `;
+            
+            // On crée un dictionnaire { "1": "fourmis", "2": "Chien" } pour aller très vite
+            users.forEach(user => {
+                usersMap[user.id] = user.pseudo;
+            });
+        }
+
+        //  On enrichit les posts avec les pseudos avant de les envoyer au front-end
+        const enrichedPosts = posts.map(post => {
+            return {
+                ...post,
+                // On ajoute le pseudo, ou "Inconnu" si l'utilisateur a été supprimé de la BD
+                authorPseudo: usersMap[post.createdBy] || `Inconnu (${post.createdBy})`,
+                comments: post.comments ? post.comments.map(c => ({
+                    ...c,
+                    authorPseudo: usersMap[c.commentedBy] || `Inconnu (${c.commentedBy})`
+                })) : []
+            };
+        });
+
+        //  Renvoi des données enrichies
         res.json({ 
             success: true, 
             page: page,
-            count: posts.length,
-            posts: posts 
+            count: enrichedPosts.length,
+            posts: enrichedPosts 
         });
-    }
-    catch{
+
+    } catch (error) {
         console.error('Erreur lors de la récupération des posts:', error);
         res.status(500).json({ error: 'Erreur serveur lors de la récupération des posts' });
     }
@@ -172,4 +215,91 @@ app.get('/api/posts', async (req, res) => {
 //Route "Catch-all" pour servir l'application Angular
 app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, '../Frontend/dist/Frontend/browser/index.html'));
+});
+
+app.post('/api/posts', async (req, res) => {
+    if(!req.session.userId) {
+        return res.status(401).json({ error: 'Unauthorized: veuillez vous connecter' });
+    }
+
+    try {
+        
+        const body = req.body.body;
+        const hashtags = req.body.hashtags || "";
+        const imageUrl = req.body.imageUrl || "";
+        const imageTitle = req.body.imageTitle || "";
+        const now= new Date();
+        const date = now.toISOString().split('T')[0];
+        const hour = now.toTimeString().split(' ')[0];
+
+        //netptoyage et formatage des hashtags
+        let tagsArray = [];
+        if (hashtags && hashtags.trim() !== '') {
+            tagsArray = hashtags.split(' ').map(tag => tag.startsWith('#') ? tag : '#' + tag);
+        }
+        
+        //Structure du post à insérer
+        const newPost ={
+            date:date,
+            hour:hour,
+            body:body,
+            createdBy: req.session.userId,
+            hashtags: tagsArray,
+            comments: [],
+            shared: null,
+            likes: 0,
+            image: { url: imageUrl, title: imageTitle },//on peut faire des posts sans images 
+        };
+        
+        //inserer le post produit dans la DB
+        const db = await connectMongo();
+        const collection = db.collection('CERISoNet');
+        const result = await collection.insertOne(newPost);
+
+        //recuperation du pseudo qui est dans la base donneée sql 
+        const userResult = await sql`SELECT pseudo FROM fredouil.compte WHERE id = ${req.session.userId}`;
+        //comparer avec celui qui est connectée 
+        const pseudo = userResult.length > 0 ? userResult[0].pseudo : `User ${req.session.userId}`;
+
+        // On renvoie le post complet au Front-end
+        const createdPost = { 
+            ...newPost, 
+            _id: result.insertedId, 
+            authorPseudo: pseudo 
+        };
+        res.json({ success: true, post: createdPost });
+    }
+
+     catch (error) {
+        console.error('Erreur lors de la création du post:', error);
+        res.status(500).json({ error: 'Erreur serveur lors de la publication' });
+    }
+});
+
+// Route pour la déconnexion
+app.post('/api/logout', async (req, res) => {
+    try {
+        if (req.session.userId) {
+            //  Mise à jour du statut dans PostgreSQL (0 = déconnecté) 
+            await sql`UPDATE fredouil.compte SET statut_connexion = 0 WHERE id = ${req.session.userId}`;
+            
+            //  Destruction de la session côté serveur 
+            req.session.destroy((err) => {
+                if (err) {
+                    console.error('Erreur lors de la destruction de la session:', err);
+                    return res.status(500).json({ error: 'Erreur lors de la déconnexion' });
+                }
+                
+                // Suppression du cookie de session côté client
+                res.clearCookie('connect.sid'); 
+                res.json({ success: true, message: 'Déconnexion réussie' });
+            });
+        } else {
+            // L'utilisateur était déjà déconnecté ou la session avait expiré
+            res.json({ success: true, message: 'Déjà déconnecté' });
+        }
+    } catch (error) {
+        console.error('Erreur lors du logout:', error);
+        res.status(500).json({ error: 'Erreur serveur lors de la déconnexion' });
+    }
 });

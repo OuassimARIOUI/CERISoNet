@@ -1,9 +1,15 @@
 <div class="wall-container">
   <app-notification></app-notification>
 
-  <div class="wall-header">
-    <h1>CERISoNet</h1>
-    <p class="subtitle">Mur d'accueil</p>
+  <div class="wall-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <h1>CERISoNet</h1>
+      <p class="subtitle">Mur d'accueil</p>
+    </div>
+    
+    <button *ngIf="authOk" class="logout-btn" (click)="onLogout()">
+      Se déconnecter
+    </button>
   </div>
 
   <div class="info-card" *ngIf="derniereConnexion">
@@ -14,16 +20,62 @@
     <span class="info-label">Première connexion sur cet appareil</span>
   </div>
 
+<div class="create-post-card" *ngIf="authOk">
+    <form [formGroup]="postForm" (ngSubmit)="onSubmitPost()">
+      <textarea 
+        formControlName="body" 
+        placeholder="Quoi de neuf aujourd'hui ?" 
+        rows="3"></textarea>
+      
+      <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <input 
+          type="text" 
+          formControlName="imageUrl" 
+          placeholder="URL de l'image (optionnel)"
+          style="flex: 2; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem;">
+        <input 
+          type="text" 
+          formControlName="imageTitle" 
+          placeholder="Titre de l'image"
+          style="flex: 1; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem;">
+      </div>
+      <div class="post-actions">
+        <input 
+          type="text" 
+          formControlName="hashtags" 
+          placeholder="Hashtags (ex: avignon soleil)">
+        
+        <button type="submit" [disabled]="postForm.invalid || isPublishing">
+          {{ isPublishing ? 'Publication...' : 'Publier' }}
+        </button>
+      </div>
+    </form>
+  </div>
+
   <div class="wall-posts">
     
     <div *ngFor="let post of posts" class="post-card">
       <div class="post-header">
-        <span class="post-author">Propriétaire ID: {{ post.createdBy }}</span>
+        <span class="post-author">Auteur : {{ post.authorPseudo }}</span>
         <span class="post-date">Le {{ post.date }} à {{ post.hour }}</span>
       </div>
       
       <div class="post-body">
         {{ post.body }}
+      </div>
+
+      <div class="post-image" *ngIf="post.image?.url || post.images?.url">
+        <img [src]="post.image?.url || post.images?.url" 
+             [alt]="post.image?.title || post.images?.title || 'Image du post'" 
+             style="max-width: 100%; border-radius: 6px; margin: 10px 0;">
+      </div>
+
+      <div class="post-comments" *ngIf="post.comments && post.comments.length > 0" style="background: #f9f9f9; padding: 10px; margin-top: 10px; border-radius: 4px; font-size: 0.85rem;">
+        <h4 style="margin: 0 0 8px 0; font-size: 0.9rem;">Commentaires ({{ post.comments.length }}) :</h4>
+        <div *ngFor="let comment of post.comments" style="margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 5px;">
+          <strong> {{ comment.authorPseudo }}</strong> <span style="color: #888; font-size: 0.75rem;">(le {{ comment.date }} à {{ comment.hour }})</span>
+          <div style="margin-top: 3px;">{{ comment.text }}</div>
+        </div>
       </div>
       
       <div class="post-footer">
@@ -50,7 +102,7 @@
     </button>
     
     <div class="posts-placeholder" *ngIf="!hasMore && posts.length > 0">
-      Vous avez atteint la fin du fil d'actualité.:
+      Vous avez atteint la fin du fil d'actualité.
     </div>
 
   </div>
