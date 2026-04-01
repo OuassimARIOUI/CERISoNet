@@ -8,7 +8,7 @@ const http = require('http');
 const path = require('path');
 const cors = require('cors');
 const sql = require('./utils/dbConnection');
-
+const { connectMongo } = require('./utils/mongoConnection');
 const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
 const { verifConnection } = require('./models/Internaute.js')
@@ -134,4 +134,38 @@ app.get('/api/testdb', async (req, res) => {
     }
 });
 
-app.get('/api/posts', async (req, res) => {});
+app.get('/api/posts', async (req, res) => {
+    //si il est pas connectée , on le fait rediriger vers la page de connection
+    /*if(!req.session.userId) {
+        return res.status(401).json({ error: 'Unauthorized: veuillez vous connecter' });
+    }*/
+
+    try{
+        //Récupération du paramètre de page (par défaut 5)
+        const page = parseInt(req.query.page)|| 5 ;
+        const postPerPage = 20 ;
+        const skipAmount = page * postPerPage;
+
+        //Connexion à la base et ciblage de la collection
+        const db = await connectMongo();
+        const collection = db.collection('CERISONet');
+
+        //  Requête MongoDB avec tri et pagination
+        const posts = await collection.find()
+        .sort({ date : -1, hour :-1 }) // Trie du plus récent au plus ancien
+        .skip(skipAmount)
+        .limit(postPerPage).toArray();
+
+        res.json({ 
+            success: true, 
+            page: page,
+            count: posts.length,
+            posts: posts 
+        });
+    }
+    catch{
+        console.error('Erreur lors de la récupération des posts:', error);
+        res.status(500).json({ error: 'Erreur serveur lors de la récupération des posts' });
+    }
+
+});
