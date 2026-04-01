@@ -14,20 +14,22 @@
     <span class="info-label">Première connexion sur cet appareil</span>
   </div>
 
-  <div class="wall-posts" *ngIf="authOk">
+  <div class="wall-posts">
     
     <div *ngFor="let post of posts" class="post-card">
       <div class="post-header">
         <span class="post-author">Propriétaire ID: {{ post.createdBy }}</span>
         <span class="post-date">Le {{ post.date }} à {{ post.hour }}</span>
       </div>
+      
       <div class="post-body">
         {{ post.body }}
       </div>
+      
       <div class="post-footer">
         <span>❤️ {{ post.likes }} likes</span>
         <span *ngIf="post.hashtags && post.hashtags.length > 0">
-          <span *ngFor="let tag of post.hashtags" class="hashtag">#{{ tag }}</span>
+          <span *ngFor="let tag of post.hashtags" class="hashtag">{{ tag }}</span>
         </span>
       </div>
     </div>

@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+// 1. Ajoute ChangeDetectorRef dans tes imports
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core'; 
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Auth } from '../../services/auth';
@@ -17,7 +18,6 @@ export class Wall implements OnInit {
   derniereConnexion: string = '';
   authOk: boolean = false;
 
-  // Variables pour la gestion des posts
   posts: any[] = [];
   currentPage: number = 0;
   isLoading: boolean = false;
@@ -27,7 +27,8 @@ export class Wall implements OnInit {
     private authService: Auth,
     private postService: PostService,
     public notifService: NotificationService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef // 2. Injecte-le ici
   ) {}
 
   ngOnInit(): void {
@@ -38,7 +39,7 @@ export class Wall implements OnInit {
       next: (response) => {
         this.userId = response.userId;
         this.authOk = true;
-        // La session est valide, on charge les premiers posts !
+        this.cdr.detectChanges(); // 3. Force Angular à afficher le div authOk
         this.loadPosts(); 
       },
       error: () => {
@@ -52,19 +53,21 @@ export class Wall implements OnInit {
     if (this.isLoading || !this.hasMore) return;
 
     this.isLoading = true;
+
     this.postService.getPosts(this.currentPage).subscribe({
       next: (response) => {
         if (response.success) {
-          // On ajoute les nouveaux posts à la liste existante
           this.posts = [...this.posts, ...response.posts];
           this.isLoading = false;
           
-          // Si on a reçu moins de 20 posts, c'est qu'il n'y en a plus à charger en base
           if (response.posts.length < 20) {
             this.hasMore = false;
           } else {
-            this.currentPage++; // On incrémente pour le prochain clic
+            this.currentPage++;
           }
+          
+          // 4. Force Angular à dessiner les nouveaux posts à l'écran !
+          this.cdr.detectChanges(); 
         }
       },
       error: (err) => {

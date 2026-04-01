@@ -136,19 +136,19 @@ app.get('/api/testdb', async (req, res) => {
 
 app.get('/api/posts', async (req, res) => {
     //si il est pas connectée , on le fait rediriger vers la page de connection
-    /*if(!req.session.userId) {
+    if(!req.session.userId) {
         return res.status(401).json({ error: 'Unauthorized: veuillez vous connecter' });
-    }*/
+    }
 
     try{
-        //Récupération du paramètre de page (par défaut 5)
-        const page = parseInt(req.query.page)|| 5 ;
+        //Récupération du paramètre de page (par défaut 0)
+        const page = parseInt(req.query.page)|| 0 ;
         const postPerPage = 20 ;
         const skipAmount = page * postPerPage;
 
         //Connexion à la base et ciblage de la collection
         const db = await connectMongo();
-        const collection = db.collection('CERISONet');
+        const collection = db.collection('CERISoNet');
 
         //  Requête MongoDB avec tri et pagination
         const posts = await collection.find()
@@ -168,4 +168,8 @@ app.get('/api/posts', async (req, res) => {
         res.status(500).json({ error: 'Erreur serveur lors de la récupération des posts' });
     }
 
+});
+//Route "Catch-all" pour servir l'application Angular
+app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(__dirname, '../Frontend/dist/Frontend/browser/index.html'));
 });
