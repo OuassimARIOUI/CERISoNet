@@ -14,7 +14,42 @@
     <span class="info-label">Première connexion sur cet appareil</span>
   </div>
 
-  <div class="wall-posts">
-    <p class="posts-placeholder">Les posts s'afficheront ici.</p>
+  <div class="wall-posts" *ngIf="authOk">
+    
+    <div *ngFor="let post of posts" class="post-card">
+      <div class="post-header">
+        <span class="post-author">Propriétaire ID: {{ post.createdBy }}</span>
+        <span class="post-date">Le {{ post.date }} à {{ post.hour }}</span>
+      </div>
+      <div class="post-body">
+        {{ post.body }}
+      </div>
+      <div class="post-footer">
+        <span>❤️ {{ post.likes }} likes</span>
+        <span *ngIf="post.hashtags && post.hashtags.length > 0">
+          <span *ngFor="let tag of post.hashtags" class="hashtag">#{{ tag }}</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="posts-placeholder" *ngIf="posts.length === 0 && !isLoading">
+      Aucun post à afficher pour le moment.
+    </div>
+
+    <div class="loading" *ngIf="isLoading">
+      Chargement des posts en cours...
+    </div>
+
+    <button 
+      class="load-more-btn" 
+      *ngIf="hasMore && posts.length > 0 && !isLoading" 
+      (click)="loadPosts()">
+      Charger les messages suivants
+    </button>
+    
+    <div class="posts-placeholder" *ngIf="!hasMore && posts.length > 0">
+      Vous avez atteint la fin du fil d'actualité.
+    </div>
+
   </div>
 </div>
