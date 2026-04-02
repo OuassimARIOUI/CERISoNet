@@ -212,6 +212,7 @@ app.get('/api/posts', async (req, res) => {
     }
 
 });
+
 //Route "Catch-all" pour servir l'application Angular
 app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, '../Frontend/dist/Frontend/browser/index.html'));

@@ -129,7 +129,7 @@ export class Wall implements OnInit {
         console.error('Erreur de déconnexion:', err);
 
         this.notifService.show('Erreur lors de la déconnexion.', 'error');
-        
+
         // On redirige quand même par sécurité
         this.router.navigate(['/login']);
       }
